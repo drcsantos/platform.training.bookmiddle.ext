@@ -1,0 +1,138 @@
+buildscript {
+
+    ext {
+        jfrogBuildInfoPluginVersion = '4.4.12'
+        springBootVersion = '1.5.7.RELEASE'
+    }
+
+    repositories {
+        maven {
+            url 'https://eis.jfrog.io/eis/plugins-release'
+            credentials {
+                username = project.artifactory_user
+                password = project.artifactory_password
+            }
+        }
+    }
+
+    dependencies {
+
+        // The dependency management plugin changes Gradle’s handling of a pom’s exclusions so that they behave as they do in Maven.
+        // https://spring.io/blog/2015/02/23/better-dependency-management-for-gradle
+        classpath "io.spring.gradle:dependency-management-plugin:0.6.0.RELEASE"
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:${jfrogBuildInfoPluginVersion}"
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+plugins {
+
+    // core plugins
+    id 'java'
+    id 'eclipse'
+    id 'maven'
+    id 'idea'
+
+    // Spring plugins
+    id "io.spring.dependency-management" version "0.6.0.RELEASE"
+
+    // JFrog Artifactory plugins
+    id "com.jfrog.artifactory" version "4.4.0"
+    id 'org.springframework.boot' version '1.5.6.RELEASE'
+}
+
+// Compilation settings
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+ext {
+
+    groupId					= 'com.ebsco.platform.training'
+    artifactId				= 'bookmiddle'
+    versionNumber			= '0.0.1-SNAPSHOT'
+    swaggerVersion 			= '2.7.0'
+    jacksonVersion 			= '2.8.5'
+    mongoDBVersion			= '1.10.4.RELEASE'
+}
+
+allprojects {
+    apply plugin: "com.jfrog.artifactory"
+    apply plugin: 'application'
+}
+
+artifactory {
+    //The base Artifactory URL if not overridden by the publisher/resolver
+    contextUrl = project.artifactory_contextUrl
+    resolve {
+        repository {
+            repoKey = 'libs-release'
+            username = project.artifactory_user
+            password = project.artifactory_password
+        }
+    }
+    publish {
+        repository {
+            repoKey = 'libs-release-local'
+            username = project.artifactory_user
+            password = project.artifactory_password
+            maven = true
+
+        }
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "com.ebsco.starter:ebsco-starter-spring-boot:2.0.0.RELEASE"
+    }
+}
+
+dependencies {
+    // EBSCO Libraries
+
+    // Spring-Boot dependencies
+    compile('org.springframework.boot:spring-boot-starter-actuator')
+    compile('org.springframework.boot:spring-boot-starter-web')
+    compile('org.springframework.boot:spring-boot-starter-test')
+
+    // Spring Data MongoDB
+    compile group: 'org.springframework.data', name: 'spring-data-mongodb', version: "${project.ext['mongoDBVersion']}"
+
+    // Embedded MongoDB dependencies
+    testCompile group: "de.flapdoodle.embed", name: "de.flapdoodle.embed.mongo", version: "2.0.0"
+
+    // https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk
+    compile group: 'com.amazonaws', name: 'aws-java-sdk', version: '1.11.220'
+
+    // Swagger dependencies
+    compile group:'io.springfox', name: 'springfox-swagger2', 	version:"${project.ext['swaggerVersion']}", transitive: true
+    compile group:'io.springfox', name: 'springfox-swagger-ui', version:"${project.ext['swaggerVersion']}", transitive: true
+    
+    // Jackson Dependencies
+    compile group: 'com.fasterxml.jackson.module', 		name: 'jackson-module-parameter-names', version: "${project.ext['jacksonVersion']}", transitive: true
+    compile group: 'com.fasterxml.jackson.datatype', 	name: 'jackson-datatype-jdk8', 			version: "${project.ext['jacksonVersion']}", transitive: true
+    compile group: 'com.fasterxml.jackson.datatype', 	name: 'jackson-datatype-jsr310',		version: "${project.ext['jacksonVersion']}", transitive: true
+}
+
+task pathingJar(type: Jar) {
+     dependsOn configurations.runtime
+     appendix = 'pathing'
+
+     doFirst {
+        manifest {
+            attributes "Class-Path": configurations.runtime.files.collect {it.toURL().toString().replaceFirst("file:/", '/')}.join(" ")
+        }
+    }
+}
+
+bootRun {
+	systemProperties = System.properties
+    dependsOn pathingJar
+    doFirst {
+        classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
+    }
+}
+
+run{
+    mainClassName = "com.ebsco.training.bookmiddle.BookApplication"
+}

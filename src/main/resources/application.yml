@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: platform.training.bookmiddle
+    version: 1.0.0
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${service.port:8080}
+  
+sqs:
+  queueUrl: https://sqs.us-east-2.amazonaws.com/404669482207/book-track.fifo
+
+mongoDB:
+  database: bookDB
+  host: 127.0.0.1
+  port: 27017
+
+swagger:
+  title: BookMiddle Service REST APIs
+  description: This successfully showcased Spring Boot REST API
+  contact:
+    name: Michael
+    url: http://www.ebsco.com
+    email: mpanson@ebsco.com
+  version: 1.0.0
+  
+--- 
+spring:
+    profile: "test"
+    
+sqs:
+    queueUrl: http://localhost:4576/queue/queue-name
